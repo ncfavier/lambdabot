@@ -55,7 +55,7 @@ urlPageTitle = rawPageTitle
 rawPageTitle :: MonadLB m => String -> m (Maybe String)
 rawPageTitle url = do
     request <- liftIO $ parseRequest (takeWhile (/='#') url)
-    response <- httpBS request
+    response <- httpBS $ addRequestHeader "Accept-Language" "en,*" request
     case getResponseStatusCode response of
         200 -> do
             case takeWhile (/= ';') . B.toString <$> getResponseHeader "Content-Type" response of
