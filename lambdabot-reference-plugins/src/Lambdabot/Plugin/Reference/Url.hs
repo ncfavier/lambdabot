@@ -9,8 +9,6 @@ import Control.Monad
 import Control.Monad.Trans
 import Data.List
 import Data.Maybe
-import Network.Browser
-import Network.HTTP
 import Text.Regex.TDFA
 
 urlPlugin :: Module Bool
@@ -20,12 +18,6 @@ urlPlugin = newModule
             { help = say "url-title <url>. Fetch the page title."
             , process =
                   maybe (say "Url not valid.") (mbSay <=< fetchTitle)
-                . containsUrl
-            }
-        , (command "tiny-url")
-            { help = say "tiny-url <url>. Shorten <url>."
-            , process =
-                  maybe (say "Url not valid.") (mbSay <=< fetchTiny)
                 . containsUrl
             }
         , (command "url-on")
@@ -51,12 +43,7 @@ urlPlugin = newModule
       if alive && (not $ areSubstringsOf ignoredStrings text)
         then case containsUrl text of
                Nothing  -> return ()
-               Just url
-                 | length url > 60 -> do
-                     title <- fetchTitle url
-                     tiny  <- fetchTiny  url
-                     say (intercalate ", " (catMaybes [title, tiny]))
-                 | otherwise -> mbSay =<< fetchTitle url
+               Just url -> mbSay =<< fetchTitle url
         else return ()
     }
 
@@ -71,32 +58,7 @@ urlTitlePrompt = "Title: "
 
 -- | Fetch the title of the specified URL.
 fetchTitle :: MonadLB m => String -> m (Maybe String)
-fetchTitle url = fmap (fmap (urlTitlePrompt ++)) (browseLB (urlPageTitle url))
-
--- | base url for fetching tiny urls
-tinyurl :: String
-tinyurl = "http://tinyurl.com/api-create.php?url="
-
--- | Fetch the title of the specified URL.
-fetchTiny :: MonadLB m => String -> m (Maybe String)
-fetchTiny url = do
-    (_, response) <- browseLB (request (getRequest (tinyurl ++ url)))
-    case rspCode response of
-      (2,0,0) -> return $ findTiny (rspBody response)
-      _       -> return Nothing
-
--- | Tries to find the start of a tinyurl
-findTiny :: String -> Maybe String
-findTiny text = do
-    mr <- matchM begreg text
-    let kind = mrMatch mr
-        rest = mrAfter mr
-        url = takeWhile (/=' ') rest
-    return $ stripSuffixes ignoredUrlSuffixes $ kind ++ url
-    where
-        begreg :: Regex
-        begreg = makeRegexOpts opts defaultExecOpt "http://tinyurl.com/"
-        opts = defaultCompOpt {caseSensitive = False}
+fetchTitle url = fmap (fmap (urlTitlePrompt ++)) (urlPageTitle url)
 
 -- | List of strings that, if present in a contextual message, will
 -- prevent the looking up of titles.  This list can be used to stop
@@ -106,11 +68,7 @@ findTiny text = do
 -- by an admin via a privileged command (TODO).
 ignoredStrings :: [String]
 ignoredStrings =
-    ["paste",                -- Ignore lisppaste, rafb.net
-     "cpp.sourcforge.net",   -- C++ paste bin
-     "HaskellIrcPastePage",  -- Ignore paste page
-     "title of that page",   -- Ignore others like the old me
-     urlTitlePrompt]         -- Ignore others like me
+    [urlTitlePrompt]         -- Ignore others like me
 
 -- | Suffixes that should be stripped off when identifying URLs in
 -- contextual messages.  These strings may be punctuation in the

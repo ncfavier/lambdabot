@@ -64,6 +64,7 @@ library
                         bytestring              >= 0.9,
                         containers              >= 0.4,
                         HTTP                    >= 4000,
+                        http-conduit,
                         lambdabot-core          >= 5.3 && < 5.4,
                         mtl                     >= 2,
                         network                 >= 2.7 && < 3.2,

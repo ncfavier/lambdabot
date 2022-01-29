@@ -95,7 +95,7 @@ searchCmd engineName (urlEncode -> query)
                     handleUrl url []
                 _ -> return ["No Result Found."]
   where handleUrl url extra = do
-            title <- browseLB (urlPageTitle url)
+            title <- urlPageTitle url
             return $ extra ++ maybe [url] (\t -> [url, "Title: " ++ t]) title
         Just (uri, makeQuery, headers) = lookup engineName engines
         request' = do
