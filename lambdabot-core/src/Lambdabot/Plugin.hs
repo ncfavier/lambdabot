@@ -52,7 +52,7 @@ lim80 :: Monad m => m String -> Cmd m ()
 lim80 action = do
     to <- getTarget
     let lim = case nName to of
-                  ('#':_) -> take 3 . map (limitStr 180) -- message to channel: be nice
+                  ('#':_) -> take 3 . map (limitStr 380) -- message to channel: be nice
                   _       -> id          -- private message: get everything
         spaceOut = unlines . lim . map (' ':) . lines
         removeControl = filter (\x -> isSpace x || not (isControl x))
