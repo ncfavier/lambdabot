@@ -31,6 +31,7 @@ browseLB act = lb $ do
 
         setAllowRedirects True
         setMaxRedirects (Just 5)
+        setUserAgent "LambdaBot"
         setProxy proxy'
         act
 
@@ -53,8 +54,10 @@ urlPageTitle = fmap (fmap (limitStr maxTitleLength)) . rawPageTitle
 -- be displayed in an IRC channel.  Instead, use 'urlPageTitle'.
 rawPageTitle :: MonadLB m => String -> m (Maybe String)
 rawPageTitle url = do
-    request <- liftIO $ parseRequest (takeWhile (/='#') url)
-    response <- httpBS $ addRequestHeader "Accept-Language" "en,*" request
+    request <- liftIO $ addRequestHeader "Accept-Language" "en,*"
+                      . addRequestHeader "User-Agent" "LambdaBot"
+                      <$> parseRequest (takeWhile (/='#') url)
+    response <- httpBS request
     case getResponseStatusCode response of
         200 -> do
             case takeWhile (/= ';') . B.toString <$> getResponseHeader "Content-Type" response of
