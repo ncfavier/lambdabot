@@ -41,8 +41,7 @@ normalizeOptions = do
     return defaultNormalizeRequestOptions
         { normDoClose = True
         , normForProxy = hasProxy
-        , normUserAgent = Nothing
-        } -- there is a default user agent, perhaps we want it?
+        }
 
 makeUri :: String -> String -> URI
 makeUri regName path = nullURI {
