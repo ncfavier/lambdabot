@@ -5,6 +5,7 @@ module Lambdabot.Plugin.Reference.Url (urlPlugin) where
 import Lambdabot.Plugin
 import Lambdabot.Util.Browser
 
+import Codec.Binary.UTF8.String
 import Control.Monad
 import Control.Monad.Trans
 import Data.List
@@ -58,7 +59,7 @@ urlTitlePrompt = "Title: "
 
 -- | Fetch the title of the specified URL.
 fetchTitle :: MonadLB m => String -> m (Maybe String)
-fetchTitle url = fmap (fmap (urlTitlePrompt ++)) (urlPageTitle url)
+fetchTitle url = fmap (fmap (urlTitlePrompt ++)) (urlPageTitle (decodeString url))
 
 -- | List of strings that, if present in a contextual message, will
 -- prevent the looking up of titles.  This list can be used to stop
