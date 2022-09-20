@@ -1,5 +1,7 @@
 {-# LANGUAGE PatternGuards #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE TypeApplications #-}
 
 -- | URL Utility Functions
 
@@ -9,17 +11,24 @@ module Lambdabot.Util.Browser
     ) where
 
 import Codec.Binary.UTF8.String
-import Control.Applicative
 import Control.Monad.Trans
+import Data.ByteString.Encoding qualified as BE
+import Data.ByteString.Lazy qualified as BL
+import Data.ByteString.UTF8 qualified as B
+import Data.CaseInsensitive
+import Data.Foldable
+import Data.Maybe
+import Data.Text qualified as T
 import Lambdabot.Config
 import Lambdabot.Config.Reference
 import Lambdabot.Monad
 import Lambdabot.Util (limitStr)
 import Network.Browser hiding (request)
+import Network.HTTP.Media
 import Network.HTTP.Simple
+import Text.Html.Encoding.Detection
 import Text.HTML.TagSoup
 import Text.HTML.TagSoup.Match
-import qualified Data.ByteString.UTF8 as B
 
 -- | Run a browser action with some standardized settings
 browseLB :: MonadLB m => BrowserAction conn a -> m a
@@ -59,23 +68,26 @@ rawPageTitle url = do
                       <$> parseRequest (takeWhile (/='#') url)
     response <- httpBS request
     case getResponseStatusCode response of
-        200 -> do
-            case takeWhile (/= ';') . B.toString <$> getResponseHeader "Content-Type" response of
-                "text/html":_ -> return $ extractTitle $ B.toString $ getResponseBody response
-                _             -> return Nothing
+        200 | ct:_ <- mapMaybe (parseAccept @MediaType) $ getResponseHeader "Content-Type" response
+            , ct `matches` "text/html" -> liftIO $ do
+                let body = getResponseBody response
+                encoding <- maybe (return BE.utf8) BE.mkTextEncoding $ asum
+                    [ B.toString . original <$> ct /. "charset"
+                    , detectBom (BL.fromStrict body)
+                    , detectMetaCharset . BL.take 1024 . BL.fromStrict $ body ]
+                return $ extractTitle $ BE.decode encoding body
         _ -> return Nothing
 
 
--- | Given a server response (list of Strings), return the text in
--- between the title HTML element, only if it is text/html content.
--- Now supports all(?) HTML entities thanks to TagSoup.
-extractTitle :: String -> Maybe String
+-- | Given a text/html server response, return the text in
+-- between the <title> tag.
+extractTitle :: T.Text -> Maybe String
 extractTitle = content . tags where
     tags = closing . opening . canonicalizeTags . parseTags
     opening = dropWhile (not . tagOpenLit "title" (const True))
     closing = takeWhile (not . tagCloseLit "title")
 
     content = maybeText . format . innerText
-    format = unwords . words
-    maybeText [] = Nothing
-    maybeText t  = Just (encodeString t)
+    format = T.unwords . T.words
+    maybeText t | T.null t = Nothing
+                | otherwise = Just (encodeString (T.unpack t))

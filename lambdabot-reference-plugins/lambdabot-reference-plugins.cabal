@@ -62,9 +62,13 @@ library
 
   build-depends:        base                    >= 4.4 && < 5,
                         bytestring              >= 0.9,
+                        bytestring-encoding     >= 0.1,
+                        case-insensitive        >= 1.2,
                         containers              >= 0.4,
+                        html-charset            >= 0.1,
                         HTTP                    >= 4000,
                         http-conduit,
+                        http-media              >= 0.6,
                         lambdabot-core          >= 5.3 && < 5.4,
                         mtl                     >= 2,
                         network                 >= 2.7 && < 3.2,
@@ -74,4 +78,5 @@ library
                         regex-tdfa              >= 1.1,
                         split                   >= 0.2,
                         tagsoup                 >= 0.12,
+                        text                    >= 1.2,
                         utf8-string             >= 0.3
