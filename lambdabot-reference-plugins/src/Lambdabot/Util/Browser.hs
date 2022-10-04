@@ -19,6 +19,7 @@ import Data.CaseInsensitive
 import Data.Foldable
 import Data.Maybe
 import Data.Text qualified as T
+import Data.Text.IDN.IDNA
 import Lambdabot.Config
 import Lambdabot.Config.Reference
 import Lambdabot.Monad
@@ -26,6 +27,8 @@ import Lambdabot.Util (limitStr)
 import Network.Browser hiding (request)
 import Network.HTTP.Media
 import Network.HTTP.Simple
+import Network.HTTP.Client (host)
+import Network.URI
 import Text.Html.Encoding.Detection
 import Text.HTML.TagSoup
 import Text.HTML.TagSoup.Match
@@ -58,6 +61,17 @@ maxTitleLength = 350
 urlPageTitle :: MonadLB m => String -> m (Maybe String)
 urlPageTitle = fmap (fmap (limitStr maxTitleLength)) . rawPageTitle
 
+-- | Fixes the encoding of a Unicode hostname from percent-encoding
+-- (as a result of `escapeURIString`) to IDNA.
+fixHost :: Request -> Request
+fixHost req = setRequestHost host' req where
+    host' = either (error . show) id
+          . toASCII defaultFlags
+          . T.pack
+          . unEscapeString
+          . B.toString
+          $ host req
+
 -- | Fetches a page title for the specified URL.  This function should
 -- only be used by other plugins if and only if the result is not to
 -- be displayed in an IRC channel.  Instead, use 'urlPageTitle'.
@@ -65,7 +79,8 @@ rawPageTitle :: MonadLB m => String -> m (Maybe String)
 rawPageTitle url = do
     request <- liftIO $ addRequestHeader "Accept-Language" "en,*"
                       . addRequestHeader "User-Agent" "LambdaBot"
-                      <$> parseRequest (takeWhile (/='#') url)
+                      . fixHost
+                      <$> parseRequest url
     response <- httpBS request
     case getResponseStatusCode response of
         200 | ct:_ <- mapMaybe (parseAccept @MediaType) $ getResponseHeader "Content-Type" response
